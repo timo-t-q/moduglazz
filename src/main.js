@@ -7,7 +7,9 @@ import { Glasses, FRAMES, TEMPLES, COLORS, FINISHES, LENSES, DEFAULT_CONFIG, MM 
 import { initLang, setLang, getLang, onLang, t } from './i18n.js';
 
 const lite = matchMedia('(max-width: 860px), (pointer: coarse)').matches;
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+// ?snap (dev only) skips easing so screenshots match the scroll position
+const snap = import.meta.env.DEV && location.search.includes('snap');
+const reduced = snap || matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $ = (s) => document.querySelector(s);
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
 const ease = (v) => v * v * (3 - 2 * v);
@@ -19,6 +21,7 @@ renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.localClippingEnabled = true;
+if ('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale = 0.5;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
@@ -66,20 +69,20 @@ scene.add(sheet);
 // ---------------------------------------------------------------- scroll stops
 // x, y are fractions of the half viewport; m overrides values on narrow screens
 const STOPS = {
-  hero: { x: 0, y: 0.18, rx: 0.12, ry: -0.45, s: 1, m: { y: 0.36, s: 0.95 } },
+  hero: { x: 0, y: 0.18, rx: 0.12, ry: -0.45, s: 1, m: { y: 0.36, s: 0.84 } },
   partsIn: { x: 0, y: 0.02, rx: 0.25, ry: 0.55, s: 0.9, m: { y: 0.2 } },
-  partsOpen: { x: 0.1, y: -0.04, rx: 0.32, ry: 0.78, s: 0.74, explode: 1, lab: 1, m: { x: 0, y: 0.2, s: 0.6 } },
-  partsHold: { x: 0.1, y: -0.04, rx: 0.26, ry: 1.12, s: 0.74, explode: 1, lab: 1, m: { x: 0, y: 0.2, s: 0.6 } },
+  partsOpen: { x: 0.08, y: -0.08, rx: 0.36, ry: 0.5, s: 0.66, explode: 1, lab: 1, m: { x: 0, y: 0.24, s: 0.5 } },
+  partsHold: { x: 0.08, y: -0.08, rx: 0.3, ry: 0.85, s: 0.66, explode: 1, lab: 1, m: { x: 0, y: 0.24, s: 0.5 } },
   fitA: { x: 0.36, y: 0.02, rx: 0, ry: 0, s: 0.86, dim: 1, m: { x: 0, y: 0.42, s: 0.88 } },
   fitB: { x: 0.36, y: 0.02, rx: 0, ry: 0, s: 0.86, dim: 1, m: { x: 0, y: 0.42, s: 0.88 } },
   stylesA: { x: 0, y: 0.0, rx: 0.12, ry: -0.65, s: 1.02, m: { y: 0.02 } },
   stylesB: { x: 0, y: 0.0, rx: 0.12, ry: 0.65, s: 1.02, m: { y: 0.02 } },
   procScan: { x: 0.34, y: 0, rx: 0.22, ry: -0.5, s: 0.84, print: 0, ghost: 1, m: { x: 0, y: 0.34, s: 0.8 } },
   procFit: { x: 0.34, y: 0, rx: 0.12, ry: 0, s: 0.84, print: 0, ghost: 1, m: { x: 0, y: 0.34, s: 0.8 } },
-  procPrintA: { x: 0.34, y: 0, rx: 0.3, ry: 0.45, s: 0.8, explode: 0.55, print: 0, ghost: 1, m: { x: 0, y: 0.34, s: 0.72 } },
-  procPrintB: { x: 0.34, y: 0, rx: 0.3, ry: 0.95, s: 0.8, explode: 0.55, print: 1, ghost: 1, m: { x: 0, y: 0.34, s: 0.72 } },
+  procPrintA: { x: 0.4, y: 0, rx: 0.3, ry: 0.45, s: 0.8, explode: 0.4, print: 0, ghost: 1, m: { x: 0, y: 0.34, s: 0.56, explode: 0.22 } },
+  procPrintB: { x: 0.4, y: 0, rx: 0.3, ry: 0.95, s: 0.8, explode: 0.4, print: 1, ghost: 1, m: { x: 0, y: 0.34, s: 0.56, explode: 0.22 } },
   procDone: { x: 0.34, y: 0, rx: 0.18, ry: 1.5, s: 0.84, explode: 0, print: 1, ghost: 1, m: { x: 0, y: 0.34, s: 0.8 } },
-  build: { x: -0.24, y: 0.02, rx: 0.16, ry: 0.6, s: 0.92, drag: 1, m: { x: 0, y: 0.42, s: 0.84 } },
+  build: { x: -0.25, y: 0.02, rx: 0.16, ry: 0.6, s: 0.68, drag: 1, m: { x: 0, y: 0.48, s: 0.66, ry: 0.35 } },
   end: { x: 0.32, y: 0.12, rx: 0.25, ry: -0.35, s: 0.7, fold: 1, m: { x: 0, y: 0.45, s: 0.66 } },
 };
 const DEFAULT_STATE = { x: 0, y: 0, rx: 0, ry: 0, s: 1, explode: 0, fold: 0, print: 1, ghost: 0, lab: 0, dim: 0, drag: 0 };
@@ -165,6 +168,8 @@ function applyConfig(cfg) {
 // ---------------------------------------------------------------- overlays
 const labelsEl = $('#labels');
 const LABEL_KEYS = ['front', 'lenses', 'bridge', 'pads', 'hinges', 'temples'];
+labelsEl.innerHTML = '<svg class="leaders"></svg>';
+const leaders = labelsEl.firstChild;
 const labelEls = LABEL_KEYS.map((k) => {
   const el = document.createElement('div');
   el.className = 'label';
@@ -184,8 +189,10 @@ function updateLabels(alpha) {
   if (alpha < 0.01) return;
   const anchors = glasses.anchors();
   rig.getWorldPosition(rigCenter);
-  const [cxs] = toScreen(rigCenter.clone());
-  LABEL_KEYS.forEach((k, i) => {
+  const [cxs, cys] = toScreen(rigCenter.clone());
+  const reach = Math.min(90, innerWidth * 0.08);
+  let lines = '';
+  const items = LABEL_KEYS.map((k, i) => {
     const mesh = anchors[k];
     if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
     mesh.geometry.boundingBox.getCenter(v3);
@@ -193,10 +200,25 @@ function updateLabels(alpha) {
     const [x, y] = toScreen(v3);
     const left = x < cxs;
     const el = labelEls[i];
-    el.classList.toggle('left', left);
-    const w = el.offsetWidth;
-    el.style.transform = `translate(${(left ? x - w + 4 : x - 4).toFixed(1)}px, ${(y - 10).toFixed(1)}px)`;
+    // push each label away from the model's centre so it never sits on the part
+    return { el, x, y, left, lx: x + (left ? -reach : reach), ly: y + Math.sign(y - cys) * reach * 0.45, w: el.offsetWidth, h: el.offsetHeight };
   });
+  // keep labels on the same side from stacking on top of each other
+  for (const side of [true, false]) {
+    const col = items.filter((it) => it.left === side).sort((a, b) => a.ly - b.ly);
+    for (let i = 1; i < col.length; i++) {
+      const min = col[i - 1].ly + (col[i - 1].h + col[i].h) / 2 + 6;
+      if (col[i].ly < min) col[i].ly = min;
+    }
+  }
+  for (const it of items) {
+    const { el, x, y, left, lx, ly, w, h } = it;
+    lines += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5"/><polyline points="${x.toFixed(1)},${y.toFixed(1)} ${(lx - (left ? -12 : 12)).toFixed(1)},${ly.toFixed(1)} ${lx.toFixed(1)},${ly.toFixed(1)}"/>`;
+    el.classList.toggle('left', left);
+    const tx = Math.min(innerWidth - w - 16, Math.max(16, left ? lx - w - 8 : lx + 8));
+    el.style.transform = `translate(${tx.toFixed(1)}px, ${(ly - h / 2).toFixed(1)}px)`;
+  }
+  leaders.innerHTML = lines;
 }
 
 const dimsEl = $('#dims');
@@ -226,7 +248,9 @@ const styleDots = $('#style-dots');
 STYLE_KEYS.forEach(() => styleDots.appendChild(document.createElement('i')));
 let styleIdx = -1;
 function setStyleText(i) {
-  styleName.textContent = t(`opt.${STYLE_KEYS[i]}`);
+  const name = t(`opt.${STYLE_KEYS[i]}`);
+  styleName.textContent = name;
+  styleName.style.setProperty('--n', Math.max(5, name.length));
   styleDesc.textContent = t(`style.${STYLE_KEYS[i]}.d`);
   styleCount.textContent = `${i + 1} / ${STYLE_KEYS.length}`;
   [...styleDots.children].forEach((d, j) => d.classList.toggle('on', j === i));
@@ -263,7 +287,7 @@ const price = (c) => PRICE.base + (PRICE.temple[c.temple] || 0) + (PRICE.finish[
 const frameIcon = (frame) => {
   const pts = [];
   for (let i = 0; i <= 48; i++) pts.push(FRAMES[frame].fn((i / 48) * Math.PI * 2));
-  const d = (sx) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${(28 + sx * (14 + x * 11)).toFixed(1)} ${(14 - y * 11).toFixed(1)}`).join('') + 'Z';
+  const d = (sx) => pts.map(([x, y], i) => `${i ? 'L' : 'M'}${(28 + sx * (14 + x * 17)).toFixed(1)} ${(14 - y * 17).toFixed(1)}`).join('') + 'Z';
   return `<svg viewBox="0 0 56 28" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2"><path d="${d(1)}"/><path d="${d(-1)}"/></g></svg>`;
 };
 const templeIcon = (k) => {
@@ -406,9 +430,23 @@ addEventListener('pointermove', (e) => {
 });
 
 let fitScale = 1, halfW = 1, halfH = 1;
+// start sharp, then step resolution down if the device can't keep up
+let maxDpr = lite ? 1.5 : 1.75;
+const perf = { frames: 0, t: 0 };
+function adapt(dt) {
+  perf.frames++; perf.t += dt;
+  if (perf.t < 1.5) return;
+  const fps = perf.frames / perf.t;
+  perf.frames = 0; perf.t = 0;
+  if (fps < 42 && maxDpr > 1 && document.visibilityState === 'visible') {
+    maxDpr = Math.max(1, maxDpr - 0.25);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, maxDpr));
+    renderer.setSize(innerWidth, innerHeight, false);
+  }
+}
 function resize() {
   const w = innerWidth, h = innerHeight;
-  renderer.setPixelRatio(Math.min(devicePixelRatio, lite ? 1.75 : 2));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, maxDpr));
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
@@ -424,7 +462,9 @@ new ResizeObserver(() => measure()).observe(document.body);
 const box = new THREE.Box3();
 const clock = new THREE.Clock();
 function frame() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const rawDt = clock.getDelta();
+  adapt(rawDt);
+  const dt = Math.min(rawDt, 0.1);
   const time = clock.elapsedTime;
   const y = scrollY;
   sampleStops(y);
@@ -487,7 +527,7 @@ function frame() {
   }
   const printing = pProc > 0 && pProc < 1 && print > 0.001 && print < 0.999;
   readout.style.opacity = printing ? 1 : 0;
-  if (printing) readout.textContent = `${t('step.print')} ${Math.round(print * TOTAL_LAYERS)} / ${TOTAL_LAYERS}`;
+  if (printing) readout.textContent = `${t('process.layer')} ${Math.round(print * TOTAL_LAYERS)} / ${TOTAL_LAYERS}`;
 
   renderer.render(scene, camera);
   updateLabels(clamp01((cur.explode - 0.5) * 2) * cur.lab);
@@ -497,15 +537,26 @@ gsap.ticker.add(frame);
 
 // ---------------------------------------------------------------- boot
 initLang();
-if (location.hash.startsWith('#build=')) {
+function openSharedBuild() {
+  if (!location.hash.startsWith('#build=')) return false;
   userConfig = decode(location.hash.slice(7));
-  requestAnimationFrame(() => {
+  renderTab();
+  renderSummary();
+  const go = () => {
     measure();
-    window.scrollTo(0, sections.build.top);
-  });
+    if (lenis) lenis.scrollTo(sections.build.top, { immediate: true, force: true });
+    else window.scrollTo(0, sections.build.top);
+  };
+  requestAnimationFrame(go);
+  document.fonts?.ready.then(go);
+  return true;
 }
+addEventListener('hashchange', openSharedBuild);
+openSharedBuild();
 glasses.set(userConfig);
 renderTab();
 renderSummary();
 document.fonts?.ready.then(measure);
 playIntro();
+
+if (import.meta.env.DEV) window.__mg = { renderer, glasses, cur, target, get sections() { return sections; }, get stops() { return stops; }, lenis };

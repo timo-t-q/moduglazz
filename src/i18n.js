@@ -30,7 +30,7 @@ export const STRINGS = {
     'process.title': 'From scan to your face in four steps.',
     'step.scan': 'Scan', 'step.scan.d': 'Take a 30-second face scan with your phone camera.',
     'step.fit': 'Fit', 'step.fit.d': 'We calculate lens width, bridge and arm length from the scan.',
-    'step.print': 'Print', 'step.print.d': 'Each part is printed in PA12 nylon, layer by layer.',
+    'process.layer': 'Layer', 'step.print': 'Print', 'step.print.d': 'Each part is printed in PA12 nylon, layer by layer.',
     'step.assemble': 'Assemble', 'step.assemble.d': 'Parts are dyed, polished and clicked together by hand.',
 
     'build.title': 'Build your pair',
@@ -83,7 +83,7 @@ export const STRINGS = {
     'process.title': 'Od skenu po tvoju tvár v štyroch krokoch.',
     'step.scan': 'Sken', 'step.scan.d': '30-sekundový sken tváre kamerou mobilu.',
     'step.fit': 'Mierky', 'step.fit.d': 'Zo skenu vypočítame šírku skla, mostík a dĺžku straníc.',
-    'step.print': 'Tlač', 'step.print.d': 'Každý diel vytlačíme z nylonu PA12, vrstvu po vrstve.',
+    'process.layer': 'Vrstva', 'step.print': 'Tlač', 'step.print.d': 'Každý diel vytlačíme z nylonu PA12, vrstvu po vrstve.',
     'step.assemble': 'Montáž', 'step.assemble.d': 'Diely zafarbíme, vyleštíme a ručne zacvakneme.',
 
     'build.title': 'Poskladaj si okuliare',

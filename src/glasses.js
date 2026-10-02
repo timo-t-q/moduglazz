@@ -30,8 +30,10 @@ export const FRAMES = {
     fn: (t) => {
       let [x, y] = se(0.6, 0.43, 2.8, t);
       const w = Math.max(0, Math.cos(t)) ** 2 * Math.max(0, Math.sin(t) + 0.35) / 1.35;
-      x += 0.08 * w; y += 0.22 * w;
-      if (y < 0) y *= 0.9;
+      x += 0.12 * w; y += 0.34 * w;
+      // taper toward the nose so the outer corner reads as a flick
+      if (Math.cos(t) < 0) y *= 1 - 0.18 * -Math.cos(t);
+      if (y < 0) y *= 0.88;
       return [x, y];
     },
   },
@@ -207,10 +209,10 @@ export class Glasses {
     this.printPlane = new THREE.Plane(new THREE.Vector3(0, -1, 0), 1e3);
     this.ghostPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -1e3);
 
-    this.frameMat = new THREE.MeshPhysicalMaterial({ clippingPlanes: [this.printPlane], side: THREE.DoubleSide });
+    this.frameMat = new THREE.MeshPhysicalMaterial({ clippingPlanes: [this.printPlane] });
     this.lensMat = new THREE.MeshPhysicalMaterial({
       clippingPlanes: [this.printPlane], roughness: 0.04, ior: 1.5, thickness: 0.06,
-      iridescenceIOR: 1.7, iridescenceThicknessRange: [180, 620], specularIntensity: 1,
+      iridescenceIOR: 1.7, iridescenceThicknessRange: [180, 620], specularIntensity: 0.7, envMapIntensity: 0.6,
     });
     this.metalMat = new THREE.MeshStandardMaterial({ color: '#c9ccd1', metalness: 1, roughness: 0.22, clippingPlanes: [this.printPlane] });
     this.padMat = new THREE.MeshPhysicalMaterial({
@@ -254,13 +256,13 @@ export class Glasses {
     this.base = new Map();
     this.explodeDir = new Map([
       [this.front, new THREE.Vector3(0, 0, 0)],
-      [this.lensesG, new THREE.Vector3(0, 0, 1.1)],
-      [this.bridgeG, new THREE.Vector3(0, 0.75, 0.25)],
-      [this.padsG, new THREE.Vector3(0, -0.85, 0.55)],
-      [this.hingeLG, new THREE.Vector3(-0.55, 0.15, -0.2)],
-      [this.hingeRG, new THREE.Vector3(0.55, 0.15, -0.2)],
-      [this.pivotL, new THREE.Vector3(-1.0, -0.1, -0.5)],
-      [this.pivotR, new THREE.Vector3(1.0, -0.1, -0.5)],
+      [this.lensesG, new THREE.Vector3(0, -0.15, 1.5)],
+      [this.bridgeG, new THREE.Vector3(0, 0.95, 0.3)],
+      [this.padsG, new THREE.Vector3(0, -1.05, 0.7)],
+      [this.hingeLG, new THREE.Vector3(-0.75, 0.45, -0.1)],
+      [this.hingeRG, new THREE.Vector3(0.75, 0.45, -0.1)],
+      [this.pivotL, new THREE.Vector3(-1.25, -0.35, -0.7)],
+      [this.pivotR, new THREE.Vector3(1.25, -0.35, -0.7)],
     ]);
 
     this.state = { explode: 0, fold: 0, print: 1, ghost: 0 };
@@ -435,12 +437,15 @@ export class Glasses {
     this.pivotL.rotation.y = -THREE.MathUtils.lerp(open, Math.PI / 2 - 0.12, fold);
     this.pivotR.position.y -= fold * 0.02;
     this.pivotL.position.y += fold * 0.02;
-    this.ghostMat.opacity = ghost * 0.55;
+    this.ghostMat.opacity = ghost * 0.8;
     for (const m of this.meshes) m.userData.ghost.visible = ghost > 0.01 && m.visible;
   }
 
   // world-space height range for the print sweep; the caller passes a fresh Box3
   setPrintHeight(h) {
+    // while a cut is visible, render back faces so the part reads as solid instead of hollow
+    const side = h < 100 ? THREE.DoubleSide : THREE.FrontSide;
+    if (this.frameMat.side !== side) { this.frameMat.side = side; this.frameMat.needsUpdate = true; }
     this.printPlane.constant = h;
     this.ghostPlane.constant = -h;
   }
@@ -449,7 +454,7 @@ export class Glasses {
   anchors() {
     return {
       front: this.rimL, lenses: this.lensR, bridge: this.bridge, pads: this.padL,
-      hinges: this.hingeR, temples: this.templeR,
+      hinges: this.hingeL, temples: this.templeL,
     };
   }
 }
