@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "video": "remotion studio video/index.jsx",
+    "video:render": "remotion render video/index.jsx PromoVertical out/moduglazz-promo-en.mp4 --props='{\"lang\":\"en\"}' --browser-executable='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --gl=angle && remotion render video/index.jsx PromoVertical out/moduglazz-promo-sk.mp4 --props='{\"lang\":\"sk\"}' --browser-executable='/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' --gl=angle"
   },
   "dependencies": {
     "gsap": "^3.15.0",
@@ -14,6 +16,13 @@
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@react-three/fiber": "^9.8.1",
+    "@remotion/cli": "^4.0.532",
+    "@remotion/google-fonts": "^4.0.532",
+    "@remotion/three": "^4.0.532",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "remotion": "^4.0.532",
     "vite": "^8.3.2"
   }
 }
