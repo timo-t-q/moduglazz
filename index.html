@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Moduglazz</title>
+  <meta name="description" content="Modular 3D printed glasses, made to your measurements." />
+  <meta name="theme-color" content="#000000" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><g fill='none' stroke='%239ad7ff' stroke-width='6'><circle cx='18' cy='34' r='12'/><circle cx='46' cy='34' r='12'/><path d='M30 32q2-4 4 0'/></g></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;500;700&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <header class="nav">
+    <a class="logo" href="#top" aria-label="Moduglazz">
+      <svg viewBox="0 0 64 32" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4"><circle cx="15" cy="16" r="11"/><circle cx="49" cy="16" r="11"/><path d="M26 14q6-6 12 0"/></g></svg>
+      <span>moduglazz</span>
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#parts" data-i18n="nav.parts">Parts</a>
+      <a href="#fit" data-i18n="nav.fit">Fit</a>
+      <a href="#styles" data-i18n="nav.styles">Shapes</a>
+      <a href="#process" data-i18n="nav.process">Process</a>
+    </nav>
+    <div class="nav-right">
+      <button class="lang" id="lang" type="button" aria-label="Switch language"><span data-l="en">EN</span><span data-l="sk">SK</span></button>
+      <a class="btn btn-small" href="#build" data-i18n="nav.build">Build yours</a>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" id="top">
+      <i class="stop" data-stop="hero" style="top:0"></i>
+      <div class="hero-copy">
+        <h1 class="hero-title" data-i18n="hero.title">Printed for one face. Yours.</h1>
+        <p class="lead" data-i18n="hero.sub"></p>
+        <div class="actions">
+          <a class="btn" href="#build" data-i18n="hero.cta">Build your pair</a>
+          <a class="btn btn-ghost" href="#process" data-i18n="hero.cta2">See how it’s made</a>
+        </div>
+      </div>
+      <p class="hero-note" data-i18n="hero.note"></p>
+    </section>
+
+    <section class="tall" id="parts" style="--h:320vh">
+      <i class="stop" data-stop="partsIn" style="top:0"></i>
+      <i class="stop" data-stop="partsOpen" style="top:30%"></i>
+      <i class="stop" data-stop="partsHold" style="top:62%"></i>
+      <div class="sticky">
+        <div class="copy copy-top">
+          <h2 data-i18n="parts.title">Six parts. Swap any of them.</h2>
+          <p data-i18n="parts.body"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tall" id="fit" style="--h:220vh">
+      <i class="stop" data-stop="fitA" style="top:0"></i>
+      <i class="stop" data-stop="fitB" style="top:42%"></i>
+      <div class="sticky">
+        <div class="copy copy-side">
+          <h2 data-i18n="fit.title">Made to your measurements.</h2>
+          <p data-i18n="fit.body"></p>
+          <div class="sliders">
+            <label class="slider"><span data-i18n="fit.lens">Lens width</span><output id="o-lens">50 mm</output>
+              <input type="range" id="s-lens" min="46" max="56" step="1" value="50" /></label>
+            <label class="slider"><span data-i18n="fit.bridge">Bridge</span><output id="o-bridge">18 mm</output>
+              <input type="range" id="s-bridge" min="14" max="22" step="1" value="18" /></label>
+            <label class="slider"><span data-i18n="fit.temple">Arm length</span><output id="o-temple">140 mm</output>
+              <input type="range" id="s-temple" min="130" max="150" step="1" value="140" /></label>
+          </div>
+          <p class="fine" data-i18n="fit.note"></p>
+        </div>
+      </div>
+    </section>
+
+    <section class="tall" id="styles" style="--h:600vh">
+      <i class="stop" data-stop="stylesA" style="top:0"></i>
+      <i class="stop" data-stop="stylesB" style="top:82%"></i>
+      <div class="sticky">
+        <p class="styles-kicker"><span data-i18n="styles.title">Five frame shapes</span> <span class="count" id="style-count">1 / 5</span></p>
+        <div class="style-name" id="style-name" aria-live="polite">Round</div>
+        <p class="style-desc" id="style-desc"></p>
+        <div class="style-dots" id="style-dots" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="tall" id="process" style="--h:520vh">
+      <i class="stop" data-stop="procScan" style="top:0"></i>
+      <i class="stop" data-stop="procFit" style="top:16%"></i>
+      <i class="stop" data-stop="procPrintA" style="top:32%"></i>
+      <i class="stop" data-stop="procPrintB" style="top:56%"></i>
+      <i class="stop" data-stop="procDone" style="top:74%"></i>
+      <div class="sticky">
+        <div class="copy copy-side">
+          <h2 data-i18n="process.title">From scan to your face in four steps.</h2>
+          <ol class="steps" id="steps">
+            <li><b data-i18n="step.scan">Scan</b><span data-i18n="step.scan.d"></span></li>
+            <li><b data-i18n="step.fit">Fit</b><span data-i18n="step.fit.d"></span></li>
+            <li><b data-i18n="step.print">Print</b><span data-i18n="step.print.d"></span></li>
+            <li><b data-i18n="step.assemble">Assemble</b><span data-i18n="step.assemble.d"></span></li>
+          </ol>
+        </div>
+        <div class="layer-readout" id="layer-readout" aria-hidden="true"></div>
+      </div>
+    </section>
+
+    <section class="build" id="build">
+      <i class="stop" data-stop="build" style="top:0"></i>
+      <div class="stage" id="stage">
+        <p class="hint" data-i18n="build.hint">Drag to rotate</p>
+      </div>
+      <aside class="panel" aria-labelledby="build-title">
+        <h2 id="build-title" data-i18n="build.title">Build your pair</h2>
+        <div class="tabs" role="tablist" id="tabs">
+          <button role="tab" data-tab="frame" aria-selected="true" data-i18n="tab.frame">Frame</button>
+          <button role="tab" data-tab="temple" aria-selected="false" data-i18n="tab.temple">Arms</button>
+          <button role="tab" data-tab="color" aria-selected="false" data-i18n="tab.color">Color</button>
+          <button role="tab" data-tab="lens" aria-selected="false" data-i18n="tab.lens">Lenses</button>
+        </div>
+        <div class="tab-body" id="tab-body"></div>
+        <div class="summary">
+          <div>
+            <p class="summary-name" id="summary-name"></p>
+            <p class="summary-price"><span data-i18n="build.price">Estimated price</span> <b id="price"></b></p>
+          </div>
+          <div class="summary-actions">
+            <button class="btn btn-ghost btn-small" id="explode-btn" type="button" data-i18n="build.explode">Show parts</button>
+            <button class="btn btn-small" id="copy-btn" type="button" data-i18n="build.copy">Copy link</button>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="end" id="end">
+      <i class="stop" data-stop="end" style="top:0"></i>
+      <div class="end-copy">
+        <h2 data-i18n="end.title">Want a pair?</h2>
+        <p data-i18n="end.body"></p>
+        <a class="btn" href="mailto:hello@moduglazz.sk" data-i18n="end.cta">Write to us</a>
+      </div>
+      <p class="fine" data-i18n="end.small"></p>
+    </section>
+  </main>
+
+  <div class="labels" id="labels" aria-hidden="true"></div>
+  <svg class="dims" id="dims" aria-hidden="true"></svg>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
