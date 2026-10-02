@@ -1,9 +1,9 @@
 import './style.css';
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import gsap from 'gsap';
 import Lenis from 'lenis';
 import { Glasses, FRAMES, TEMPLES, COLORS, FINISHES, LENSES, DEFAULT_CONFIG, MM } from './glasses.js';
+import { studioEnvironment } from './studio.js';
 import { initLang, setLang, getLang, onLang, t } from './i18n.js';
 
 const lite = matchMedia('(max-width: 860px), (pointer: coarse)').matches;
@@ -21,15 +21,13 @@ renderer.setClearColor(0x000000, 0);
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.localClippingEnabled = true;
-if ('transmissionResolutionScale' in renderer) renderer.transmissionResolutionScale = 0.5;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
 camera.position.set(0, 0, 9);
 
-const pmrem = new THREE.PMREMGenerator(renderer);
-scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.85;
+scene.environment = studioEnvironment(renderer);
+scene.environmentIntensity = 1;
 
 const key = new THREE.DirectionalLight('#ffffff', 2.2);
 key.position.set(3, 4, 6);

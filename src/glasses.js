@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // One world unit = 42 mm. Defaults land on a typical 50-18-140 frame.
 export const MM = 42;
@@ -14,10 +14,10 @@ const se = (rx, ry, p, t) => {
 
 // Lens outlines for the RIGHT lens (+x). Inner side (nose) is -x. Counter-clockwise.
 export const FRAMES = {
-  round: { rim: 0.075, bridgeR: 0.045, fn: (t) => [0.6 * Math.cos(t), 0.56 * Math.sin(t)] },
-  square: { rim: 0.105, bridgeR: 0.06, fn: (t) => se(0.64, 0.47, 4.6, t) },
+  round: { rim: 0.078, bridgeH: 0.07, fn: (t) => [0.6 * Math.cos(t), 0.56 * Math.sin(t)] },
+  square: { rim: 0.105, bridgeH: 0.095, fn: (t) => se(0.64, 0.47, 4.6, t) },
   aviator: {
-    rim: 0.05, bridgeR: 0.03, brow: true,
+    rim: 0.05, bridgeR: 0.03, brow: true, metal: true,
     fn: (t) => {
       let [x, y] = se(0.63, 0.54, 2.5, t);
       if (y > 0) y *= 0.8;
@@ -26,7 +26,7 @@ export const FRAMES = {
     },
   },
   cateye: {
-    rim: 0.1, bridgeR: 0.05,
+    rim: 0.1, bridgeH: 0.085,
     fn: (t) => {
       let [x, y] = se(0.6, 0.43, 2.8, t);
       const w = Math.max(0, Math.cos(t)) ** 2 * Math.max(0, Math.sin(t) + 0.35) / 1.35;
@@ -38,7 +38,7 @@ export const FRAMES = {
     },
   },
   hex: {
-    rim: 0.08, bridgeR: 0.04,
+    rim: 0.08, bridgeH: 0.072,
     fn: (t) => {
       const seg = Math.PI / 3, R = 0.64;
       const a = (((t % seg) + seg) % seg) - seg / 2;
@@ -59,18 +59,20 @@ export const COLORS = {
   cobalt: '#2d55d8', ember: '#ff6b2c', lilac: '#b7a4e8', ice: '#d6ecf5',
 };
 
+// matte = raw printed nylon (grainy), gloss = polished and lacquered, crystal = tinted see-through
 export const FINISHES = {
-  matte: { roughness: 0.6, metalness: 0, clearcoat: 0, transmission: 0 },
-  gloss: { roughness: 0.16, metalness: 0, clearcoat: 1, transmission: 0 },
-  crystal: { roughness: 0.1, metalness: 0, clearcoat: 1, transmission: 0.9 },
-  metal: { roughness: 0.26, metalness: 1, clearcoat: 0, transmission: 0 },
+  matte: { roughness: 0.78, metalness: 0, clearcoat: 0, transmission: 0, grain: true },
+  gloss: { roughness: 0.34, metalness: 0, clearcoat: 1, transmission: 0 },
+  crystal: { roughness: 0.06, metalness: 0, clearcoat: 1, transmission: 0.95 },
+  metal: { roughness: 0.22, metalness: 1, clearcoat: 0.4, transmission: 0 },
 };
 
+// irid fakes the anti-reflective coating's faint green/violet sheen
 export const LENSES = {
-  clear: { color: '#ffffff', mOpacity: 0.18, irid: 0 },
-  sun: { color: '#24282d', mOpacity: 0.88, irid: 0 },
-  blue: { color: '#fff6e6', mOpacity: 0.22, irid: 1 },
-  gradient: { color: '#ffffff', mOpacity: 0.7, irid: 0.25, gradient: true },
+  clear: { color: '#ffffff', mOpacity: 0.14, irid: 0.35, spec: 0.35 },
+  sun: { color: '#22262b', mOpacity: 0.88, irid: 0.2, spec: 0.8 },
+  blue: { color: '#fff6e6', mOpacity: 0.2, irid: 1, spec: 0.6 },
+  gradient: { color: '#ffffff', mOpacity: 0.7, irid: 0.25, spec: 0.6, gradient: true },
 };
 
 export const DEFAULT_CONFIG = { frame: 'round', temple: 'slim', color: 'bone', finish: 'gloss', lens: 'clear' };
@@ -118,13 +120,26 @@ function bounds(pts) {
 
 const mirror = (pts) => pts.map((p) => new THREE.Vector2(-p.x, p.y)).reverse();
 
+// Area-weighted normals shared by every vertex at the same position: soft, molded-looking
+// surfaces, while each face keeps its own UVs for the print-grain bump map.
 function smooth(geo) {
-  geo.deleteAttribute('normal');
-  geo.deleteAttribute('uv');
-  const g = mergeVertices(geo, 1e-4);
-  g.computeVertexNormals();
-  geo.dispose();
-  return g;
+  const p = geo.attributes.position, n = geo.attributes.normal;
+  const key = (i) => `${Math.round(p.getX(i) * 1e4)},${Math.round(p.getY(i) * 1e4)},${Math.round(p.getZ(i) * 1e4)}`;
+  const acc = new Map();
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3();
+  for (let i = 0; i < p.count; i += 3) {
+    a.fromBufferAttribute(p, i); b.fromBufferAttribute(p, i + 1); c.fromBufferAttribute(p, i + 2);
+    const fn = c.sub(b).cross(a.sub(b));
+    for (let j = 0; j < 3; j++) {
+      const k = key(i + j);
+      const v = acc.get(k);
+      if (v) v.add(fn); else acc.set(k, fn.clone());
+    }
+  }
+  for (const v of acc.values()) v.normalize();
+  for (let i = 0; i < p.count; i++) { const v = acc.get(key(i)); n.setXYZ(i, v.x, v.y, v.z); }
+  n.needsUpdate = true;
+  return geo;
 }
 
 // ---------- 3D part geometry ----------
@@ -132,7 +147,7 @@ function rimGeometry(pts, rim, depth) {
   const shape = new THREE.Shape(offset(pts, rim));
   shape.holes.push(new THREE.Path(pts.slice().reverse()));
   const g = new THREE.ExtrudeGeometry(shape, {
-    depth, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.022, bevelSegments: 4, steps: 1,
+    depth, bevelEnabled: true, bevelThickness: 0.036, bevelSize: 0.028, bevelSegments: 7, steps: 1,
   });
   g.translate(0, 0, -depth / 2);
   return smooth(g);
@@ -153,10 +168,57 @@ function lensGeometry(pts) {
   return g;
 }
 
+// one molded piece between the rims; its ends run into the middle of each rim so the joint disappears
+function bridgeGeometry(pts, cx, rim, yB, bh, depth) {
+  const mid = offset(pts, rim * 0.55);
+  const xr = (y) => cx + edgeX(mid, y, -1);
+  const yT = yB + bh, yL = yB - bh, S = 28, H = 10;
+  const out = [];
+  const xb = xr(yL), xt = xr(yT);
+  for (let i = 0; i <= S; i++) { const x = -xb + (2 * xb * i) / S; out.push(new THREE.Vector2(x, yL + 0.07 * (1 - (x / xb) ** 2))); }
+  for (let i = 1; i < H; i++) { const y = yL + ((yT - yL) * i) / H; out.push(new THREE.Vector2(xr(y), y)); }
+  for (let i = 0; i <= S; i++) { const x = xt - (2 * xt * i) / S; out.push(new THREE.Vector2(x, yT + 0.018 * (1 - (x / xt) ** 2))); }
+  for (let i = 1; i < H; i++) { const y = yT - ((yT - yL) * i) / H; out.push(new THREE.Vector2(-xr(y), y)); }
+  const g = new THREE.ExtrudeGeometry(new THREE.Shape(out), {
+    depth: depth * 0.92, bevelEnabled: true, bevelThickness: 0.034, bevelSize: 0.024, bevelSegments: 7, steps: 1,
+  });
+  g.translate(0, 0, -depth * 0.46);
+  return smooth(g);
+}
+
+// three alternating knuckles and a screw head, like a real barrel hinge
+function hingeGeometry(h) {
+  const k = h / 3;
+  const parts = [-1, 0, 1].map((i) => {
+    const c = new THREE.CylinderGeometry(0.03, 0.03, k - 0.008, 18);
+    c.translate(0, i * k, 0);
+    return c;
+  });
+  const head = new THREE.CylinderGeometry(0.022, 0.022, 0.014, 18);
+  head.translate(0, h / 2 + 0.007, 0);
+  parts.push(head);
+  return mergeGeometries(parts);
+}
+
+function templeCurve(style, L) {
+  const bendAt = L * 0.72, drop = 0.5;
+  return (u) => (u < bendAt ? 0 : -drop * ((u - bendAt) / (L - bendAt)) ** 2);
+}
+
+// the steel wire inside acetate arms, visible through crystal frames
+function coreGeometry(style, L) {
+  const center = templeCurve(style, L);
+  const pts = [];
+  for (let i = 0; i <= 40; i++) { const u = 0.06 + ((L * 0.86 - 0.06) * i) / 40; pts.push(new THREE.Vector3(0, center(u), -u)); }
+  const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 80, 0.011, 8, false);
+  g.scale(1, 1.8, 1);
+  return g;
+}
+
 function templeGeometry(style, L) {
   const { h0, h1, th } = TEMPLES[style];
-  const bendAt = L * 0.72, drop = 0.5, S = 64;
-  const center = (u) => (u < bendAt ? 0 : -drop * ((u - bendAt) / (L - bendAt)) ** 2);
+  const S = 64;
+  const center = templeCurve(style, L);
   const height = (u) => THREE.MathUtils.lerp(h0, h1, THREE.MathUtils.smoothstep(u / L, 0, 0.55));
   const top = [], bot = [];
   for (let i = 0; i <= S; i++) {
@@ -175,11 +237,28 @@ function templeGeometry(style, L) {
   }
   const shape = new THREE.Shape([...top, ...tip, ...bot.reverse()]);
   const g = new THREE.ExtrudeGeometry(shape, {
-    depth: th, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 3, steps: 1,
+    depth: th, bevelEnabled: true, bevelThickness: 0.014, bevelSize: 0.012, bevelSegments: 5, steps: 1,
   });
   g.translate(0, 0, -th / 2);
   g.rotateY(Math.PI / 2);
   return smooth(g);
+}
+
+function grainTexture() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 256;
+  const ctx = c.getContext('2d');
+  const img = ctx.createImageData(256, 256);
+  for (let i = 0; i < img.data.length; i += 4) {
+    const v = 110 + Math.random() * 120;
+    img.data[i] = img.data[i + 1] = img.data[i + 2] = v;
+    img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  const tex = new THREE.CanvasTexture(c);
+  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+  tex.repeat.set(9, 9);
+  return tex;
 }
 
 function gradientTexture() {
@@ -211,8 +290,8 @@ export class Glasses {
 
     this.frameMat = new THREE.MeshPhysicalMaterial({ clippingPlanes: [this.printPlane] });
     this.lensMat = new THREE.MeshPhysicalMaterial({
-      clippingPlanes: [this.printPlane], roughness: 0.04, ior: 1.5, thickness: 0.06,
-      iridescenceIOR: 1.7, iridescenceThicknessRange: [180, 620], specularIntensity: 0.7, envMapIntensity: 0.6,
+      clippingPlanes: [this.printPlane], ior: 1.5, thickness: 0.04,
+      iridescenceIOR: 1.6, iridescenceThicknessRange: [240, 480], roughness: 0, envMapIntensity: 0.55,
     });
     this.metalMat = new THREE.MeshStandardMaterial({ color: '#c9ccd1', metalness: 1, roughness: 0.22, clippingPlanes: [this.printPlane] });
     this.padMat = new THREE.MeshPhysicalMaterial({
@@ -222,6 +301,7 @@ export class Glasses {
       color: '#9ad7ff', transparent: true, opacity: 0, clippingPlanes: [this.ghostPlane], depthWrite: false,
     });
     this.gradTex = gradientTexture();
+    this.grainTex = grainTexture();
 
     this.root = new THREE.Group();
     const mk = (mat, parent = this.root) => {
@@ -243,6 +323,7 @@ export class Glasses {
     this.hingeRG = grp(); this.hingeR = mk(this.metalMat, this.hingeRG);
     this.pivotL = grp(); this.templeL = mk(this.frameMat, this.pivotL);
     this.pivotR = grp(); this.templeR = mk(this.frameMat, this.pivotR);
+    this.coreL = mk(this.metalMat, this.templeL); this.coreR = mk(this.metalMat, this.templeR);
 
     this.meshes = [this.rimL, this.rimR, this.endL, this.endR, this.brow, this.bridge, this.lensL, this.lensR,
       this.padL, this.padR, this.hingeL, this.hingeR, this.templeL, this.templeR];
@@ -325,7 +406,13 @@ export class Glasses {
     const curve = new THREE.CatmullRomCurve3([
       new THREE.Vector3(xIn, yB, 0), new THREE.Vector3(0, yB + 0.07, 0.035), new THREE.Vector3(-xIn, yB, 0),
     ]);
-    set(this.bridge, new THREE.TubeGeometry(curve, 32, F.bridgeR, 14, false));
+    if (F.metal) {
+      set(this.bridge, new THREE.TubeGeometry(curve, 32, F.bridgeR, 14, false));
+      this.bridge.material = this.metalMat;
+    } else {
+      set(this.bridge, bridgeGeometry(pts, cx, rim, yB, F.bridgeH, depth));
+      this.bridge.material = this.frameMat;
+    }
     this.bridge.position.set(0, 0, 0);
 
     // aviators get a brow bar across the top
@@ -336,6 +423,7 @@ export class Glasses {
         new THREE.Vector3(xa, yT, 0), new THREE.Vector3(0, yT + 0.04, 0.03), new THREE.Vector3(-xa, yT, 0),
       ]);
       set(this.brow, new THREE.TubeGeometry(brow, 32, 0.026, 10, false));
+      this.brow.material = this.metalMat;
       this.brow.visible = true;
     } else this.brow.visible = false;
 
@@ -344,19 +432,22 @@ export class Glasses {
     const xOut = cx + edgeX(outer, yH, 1);
     const T = TEMPLES[temple];
     const endH = Math.max(0.17, T.h0 + 0.03);
-    set(this.endR, new RoundedBoxGeometry(0.13, endH, 0.27, 3, 0.035));
-    set(this.endL, new RoundedBoxGeometry(0.13, endH, 0.27, 3, 0.035));
+    set(this.endR, new RoundedBoxGeometry(0.13, endH, 0.27, 4, 0.05));
+    set(this.endL, new RoundedBoxGeometry(0.13, endH, 0.27, 4, 0.05));
     this.endR.position.set(xOut - 0.035, yH, -0.1);
     this.endL.position.set(-(xOut - 0.035), yH, -0.1);
 
-    set(this.hingeR, new THREE.CylinderGeometry(0.026, 0.026, endH + 0.05, 14));
-    set(this.hingeL, new THREE.CylinderGeometry(0.026, 0.026, endH + 0.05, 14));
+    set(this.hingeR, hingeGeometry(endH + 0.04));
+    set(this.hingeL, hingeGeometry(endH + 0.04));
     this.hingeR.position.set(0, 0, 0); this.hingeL.position.set(0, 0, 0);
     this.base.set(this.hingeRG, new THREE.Vector3(xOut - 0.01, yH, -0.245));
     this.base.set(this.hingeLG, new THREE.Vector3(-(xOut - 0.01), yH, -0.245));
 
     set(this.templeR, templeGeometry(temple, templeLen));
     set(this.templeL, templeGeometry(temple, templeLen));
+    this.coreR.geometry.dispose(); this.coreR.geometry = coreGeometry(temple, templeLen);
+    this.coreL.geometry.dispose(); this.coreL.geometry = coreGeometry(temple, templeLen);
+    this.coreR.position.x = this.coreL.position.x = 0;
     this.templeR.position.set(-T.th / 2 + 0.01, 0, 0);
     this.templeL.position.set(T.th / 2 - 0.01, 0, 0);
     this.base.set(this.pivotR, new THREE.Vector3(xOut - 0.02, yH, -0.26));
@@ -386,41 +477,36 @@ export class Glasses {
     const { color, finish, lens } = this.config;
     const f = FINISHES[finish];
     const fm = this.frameMat;
-    fm.color.set(finish === 'crystal' && color === 'onyx' ? '#4a4f57' : COLORS[color]);
+    const base = new THREE.Color(COLORS[color]);
     fm.roughness = f.roughness;
     fm.metalness = f.metalness;
     fm.clearcoat = f.clearcoat;
-    fm.clearcoatRoughness = 0.06;
-    if (this.lite) {
-      // phones: fake translucency instead of a transmission pass
-      fm.transmission = 0;
-      fm.transparent = f.transmission > 0;
-      fm.opacity = f.transmission > 0 ? 0.62 : 1;
-    } else {
-      fm.transmission = f.transmission;
-      fm.thickness = 0.35;
-      fm.transparent = false;
-      fm.opacity = 1;
-    }
+    fm.clearcoatRoughness = 0.04;
+    fm.bumpMap = f.grain ? this.grainTex : null;
+    fm.bumpScale = 0.9;
+    // Transmission blends against 50% white on a transparent canvas (three.js behaviour), which made
+    // everything see-through look frosted. Plain alpha blending reads as real clear plastic here.
+    const crystal = finish === 'crystal';
+    fm.transmission = 0;
+    fm.color.copy(base);
+    if (crystal) fm.color.lerp(new THREE.Color(color === 'onyx' ? '#7a828c' : '#ffffff'), 0.25);
+    fm.transparent = crystal;
+    fm.opacity = crystal ? 0.5 : 1;
+    fm.depthWrite = !crystal;
+    this.coreL.visible = this.coreR.visible = crystal;
     fm.needsUpdate = true;
 
     const L = LENSES[lens];
     const lm = this.lensMat;
     lm.color.set(L.color);
     lm.iridescence = L.irid;
+    lm.specularIntensity = L.spec;
     lm.map = L.gradient ? this.gradTex : null;
-    if (this.lite) {
-      lm.transmission = 0;
-      lm.transparent = true;
-      lm.opacity = L.mOpacity;
-      lm.depthWrite = false;
-      lm.roughness = 0.05;
-    } else {
-      lm.transmission = 1;
-      lm.transparent = false;
-      lm.opacity = 1;
-      lm.depthWrite = true;
-    }
+    lm.transmission = 0;
+    lm.transparent = true;
+    lm.opacity = L.mOpacity;
+    lm.depthWrite = false;
+    lm.roughness = 0.02;
     lm.needsUpdate = true;
   }
 
